@@ -1,0 +1,6 @@
+Flask==2.1.1
+scikit-learn==1.0.2
+pandas==1.4.2
+nltk==3.7
+pickle5==0.0.12  # For compatibility across different Python versions
+gunicorn==20.1.0  # Optional, if deploying to a production server
