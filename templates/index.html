@@ -1,52 +1,222 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fake News Detection</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            text-align: center;
-            padding: 50px;
-        }
-        .container {
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 50%;
-            margin: auto;
-        }
-        input[type="text"], textarea {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        input[type="submit"] {
-            padding: 10px 20px;
-            background-color: #28a745;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        input[type="submit"]:hover {
-            background-color: #218838;
-        }
-    </style>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Fake News Detector</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"/>
+  <style>
+    body { background: #f0f2f5; font-family: 'Segoe UI', sans-serif; }
+    .hero { background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); color: #fff; padding: 3rem 0; }
+    .hero .badge { font-size: .85rem; }
+    .card { border-radius: 14px; }
+    #newsInput { min-height: 180px; resize: vertical; font-size: .95rem; }
+    .result-card  { display: none; border-radius: 14px; }
+    .real-card    { background: #d1fae5; border-left: 6px solid #10b981; }
+    .fake-card    { background: #fee2e2; border-left: 6px solid #ef4444; }
+    .progress     { height: 14px; border-radius: 8px; }
+    .char-count   { font-size: .8rem; color: #6c757d; }
+    .example-btn  { font-size: .8rem; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Fake News Detection</h1>
-        <form action="/predict" method="POST">
-            <label for="news">Enter news to check if it's real or fake:</label>
-            <textarea id="news" name="news" rows="6" required></textarea>
-            <input type="submit" value="Check News">
-        </form>
+
+<!-- Hero -->
+<div class="hero text-center">
+  <h1 class="fw-bold">📰 Fake News Detector</h1>
+  <p class="lead mt-2">Paste a news article to find out if it's <strong>Real</strong> or <strong>Fake</strong></p>
+  <span class="badge bg-light text-dark me-1">Logistic Regression</span>
+  <span class="badge bg-light text-dark me-1">TF-IDF</span>
+  <span class="badge bg-light text-dark">ML Powered</span>
+</div>
+
+<!-- Main -->
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+
+      <!-- Input Card -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h5 class="card-title mb-0">Paste News Article</h5>
+            <span class="char-count"><span id="charCount">0</span> characters</span>
+          </div>
+
+          <textarea id="newsInput" class="form-control mb-2"
+            placeholder="Paste the headline and body of the news article here …"></textarea>
+
+          <!-- Example buttons -->
+          <div class="mb-3">
+            <span class="text-muted small me-2">Try an example:</span>
+            <button class="btn btn-outline-success btn-sm example-btn me-1" onclick="loadExample('real')">✅ Real News</button>
+            <button class="btn btn-outline-danger btn-sm example-btn" onclick="loadExample('fake')">❌ Fake News</button>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button id="analyseBtn" class="btn btn-primary flex-grow-1">
+              🔍 Analyse Article
+            </button>
+            <button class="btn btn-outline-secondary" onclick="clearAll()">✕ Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Spinner -->
+      <div id="spinner" class="text-center my-3 d-none">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2 text-muted">Analysing article …</p>
+      </div>
+
+      <!-- Result Card -->
+      <div id="resultCard" class="card result-card shadow-sm p-4 mb-4">
+        <h5 class="fw-bold mb-3">🔬 Analysis Result</h5>
+        <div class="d-flex align-items-center mb-4">
+          <span id="resultBadge" class="fs-3 fw-bold me-3"></span>
+          <div>
+            <div id="confidenceText" class="text-muted small"></div>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <div class="d-flex justify-content-between small mb-1">
+            <span class="fw-semibold text-success">✅ Real News Probability</span>
+            <span id="realVal" class="fw-bold"></span>
+          </div>
+          <div class="progress">
+            <div id="realBar" class="progress-bar bg-success" role="progressbar"></div>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <div class="d-flex justify-content-between small mb-1">
+            <span class="fw-semibold text-danger">❌ Fake News Probability</span>
+            <span id="fakeVal" class="fw-bold"></span>
+          </div>
+          <div class="progress">
+            <div id="fakeBar" class="progress-bar bg-danger" role="progressbar"></div>
+          </div>
+        </div>
+
+        <p class="text-muted small mt-3 mb-0">
+          ⚠️ This tool is for educational purposes. Always verify news from trusted sources.
+        </p>
+      </div>
+
+      <!-- Error -->
+      <div id="errorAlert" class="alert alert-danger d-none"></div>
+
+      <!-- How it works -->
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h6 class="fw-bold mb-3">⚙️ How It Works</h6>
+          <div class="row g-3 text-center">
+            <div class="col-md-4">
+              <div class="p-3 bg-light rounded">
+                <div class="fs-4">🧹</div>
+                <div class="small fw-semibold mt-1">Text Cleaning</div>
+                <div class="small text-muted">Remove noise, URLs, punctuation</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="p-3 bg-light rounded">
+                <div class="fs-4">📊</div>
+                <div class="small fw-semibold mt-1">TF-IDF Vectorisation</div>
+                <div class="small text-muted">50K features with bigrams</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="p-3 bg-light rounded">
+                <div class="fs-4">🤖</div>
+                <div class="small fw-semibold mt-1">Logistic Regression</div>
+                <div class="small text-muted">Trained on 40K+ articles</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
+  </div>
+</div>
+
+<script>
+  const examples = {
+    real: `Scientists have discovered a new species of deep-sea fish in the Pacific Ocean. The research team from the Scripps Institution of Oceanography published their findings in the journal Nature. The fish, found at depths of over 8,000 meters, uses bioluminescence to attract prey in the complete darkness of the ocean floor. The discovery adds to our understanding of deep-sea ecosystems and biodiversity.`,
+    fake: `BREAKING: Government secretly adding mind-control chemicals to tap water, whistleblower reveals! A brave insider has exposed the shocking truth that authorities have been hiding for decades. The chemicals, which are completely undetectable, are said to make citizens more compliant and less likely to question authority. Mainstream media is refusing to cover this explosive story. Share this before it gets deleted!`
+  };
+
+  const newsInput  = document.getElementById('newsInput');
+  const analyseBtn = document.getElementById('analyseBtn');
+  const spinner    = document.getElementById('spinner');
+  const resultCard = document.getElementById('resultCard');
+  const errorAlert = document.getElementById('errorAlert');
+
+  newsInput.addEventListener('input', () => {
+    document.getElementById('charCount').textContent = newsInput.value.length;
+  });
+
+  function loadExample(type) {
+    newsInput.value = examples[type];
+    document.getElementById('charCount').textContent = newsInput.value.length;
+    resultCard.style.display = 'none';
+    errorAlert.classList.add('d-none');
+  }
+
+  function clearAll() {
+    newsInput.value = '';
+    document.getElementById('charCount').textContent = '0';
+    resultCard.style.display = 'none';
+    errorAlert.classList.add('d-none');
+  }
+
+  analyseBtn.addEventListener('click', async () => {
+    const text = newsInput.value.trim();
+    if (!text) {
+      errorAlert.textContent = 'Please paste a news article first.';
+      errorAlert.classList.remove('d-none');
+      return;
+    }
+
+    spinner.classList.remove('d-none');
+    analyseBtn.disabled = true;
+    resultCard.style.display = 'none';
+    errorAlert.classList.add('d-none');
+
+    try {
+      const res  = await fetch('/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+      const data = await res.json();
+      spinner.classList.add('d-none');
+      analyseBtn.disabled = false;
+
+      if (data.error) {
+        errorAlert.textContent = data.error;
+        errorAlert.classList.remove('d-none');
+        return;
+      }
+
+      const isReal = data.label === 'Real';
+      resultCard.className = `card result-card shadow-sm p-4 mb-4 ${isReal ? 'real-card' : 'fake-card'}`;
+      document.getElementById('resultBadge').textContent = isReal ? 'Real News' : 'Fake News';
+      document.getElementById('confidenceText').textContent = `Model confidence: ${data.confidence}%`;
+      document.getElementById('realVal').textContent = `${data.real_prob}%`;
+      document.getElementById('fakeVal').textContent = `${data.fake_prob}%`;
+      document.getElementById('realBar').style.width = `${data.real_prob}%`;
+      document.getElementById('fakeBar').style.width = `${data.fake_prob}%`;
+      resultCard.style.display = 'block';
+      resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    } catch (err) {
+      spinner.classList.add('d-none');
+      analyseBtn.disabled = false;
+      errorAlert.textContent = 'Something went wrong. Please try again.';
+      errorAlert.classList.remove('d-none');
+    }
+  });
+</script>
 </body>
 </html>
